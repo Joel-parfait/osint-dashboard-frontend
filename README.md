@@ -1,70 +1,225 @@
-# Getting Started with Create React App
+# OSINT Intelligence Dashboard
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A full-stack OSINT (Open Source Intelligence) dashboard for searching and analyzing leaked data with Redis caching for performance.
 
-## Available Scripts
+## 🚀 Features
 
-In the project directory, you can run:
+- **Search leaked data** by name, phone, email, address
+- **Redis caching** for instant repeated searches
+- **User authentication** with password management
+- **Search history** with cache status indicators
+- **Export capabilities** (JSON, CSV, PDF)
+- **Real-time statistics** and visualizations
+- **Dark mode** support
 
-### `npm start`
+## 📋 Prerequisites
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+### Backend
+- Java 17 or higher
+- Maven 3.6+
+- MongoDB 5.0+
+- Redis (optional, for caching)
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### Frontend
+- Node.js 16+ and npm
 
-### `npm test`
+## 🔧 Installation
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### 1. Clone Repository
+```bash
+git clone https://github.com/YOUR_USERNAME/osint-dashboard.git
+cd osint-dashboard
+```
 
-### `npm run build`
+### 2. Setup MongoDB
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+Follow instructions in `DATABASE_SETUP.md` to:
+- Create MongoDB user
+- Import database
+- Verify data
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### 3. Setup Redis (Optional but Recommended)
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+**Windows:**
+- Download from https://github.com/microsoftarchive/redis/releases
+- Install `Redis-x64-3.0.504.msi`
+- Redis runs automatically as service
 
-### `npm run eject`
+**Linux:**
+```bash
+sudo apt-get update
+sudo apt-get install redis-server
+sudo systemctl start redis
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+**Verify Redis:**
+```bash
+redis-cli ping
+# Should return: PONG
+```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### 4. Configure Backend
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+Edit `src/main/resources/application.properties`:
+```properties
+# Update MongoDB credentials if needed
+spring.mongodb.uri=mongodb://kenji:Rolosha%40123@127.0.0.1:27017/leaks_db?authSource=admin
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+# Redis configuration (if using)
+spring.data.redis.host=localhost
+spring.data.redis.port=6379
+```
 
-## Learn More
+### 5. Build & Run Backend
+```bash
+# Install dependencies and build
+mvn clean install -DskipTests
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+# Run application
+mvn spring-boot:run -DskipTests
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+Backend will start on `http://localhost:8080`
 
-### Code Splitting
+### 6. Setup Frontend
+```bash
+# Navigate to frontend directory
+cd frontend  # or wherever your React app is
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+# Install dependencies
+npm install
 
-### Analyzing the Bundle Size
+# Start development server
+npm start
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+Frontend will start on `http://localhost:3000`
 
-### Making a Progressive Web App
+## 🧪 Testing
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+### Backend Health Check
+```bash
+curl http://localhost:8080/search/health
+```
 
-### Advanced Configuration
+### Redis Cache Check
+```bash
+curl http://localhost:8080/api/cache/health
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+### MongoDB Check
+```bash
+mongosh "mongodb://kenji:Rolosha%40123@127.0.0.1:27017/leaks_db?authSource=admin"
+db.leakeddata.countDocuments()
+```
 
-### Deployment
+## 📁 Project Structure
+```
+osint-dashboard/
+├── src/
+│   ├── main/
+│   │   ├── java/com/cirt/osint_dashboard/
+│   │   │   ├── config/          # Redis, CORS, Web config
+│   │   │   ├── controller/      # REST endpoints
+│   │   │   ├── model/           # Data models
+│   │   │   ├── repository/      # MongoDB repositories
+│   │   │   ├── service/         # Business logic
+│   │   │   └── dto/             # Data transfer objects
+│   │   └── resources/
+│   │       └── application.properties
+│   └── test/
+├── frontend/                    # React application
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   └── styles/
+│   └── public/
+├── database-backup/            # MongoDB dump
+├── pom.xml                     # Maven configuration
+└── README.md
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+## 🔑 Default Login Credentials
 
-### `npm run build` fails to minify
+**Username:** `admin`  
+**Password:** `admin123`
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+⚠️ **Change default password after first login!**
+
+## 📊 API Endpoints
+
+### Authentication
+- `POST /auth/login` - User login
+- `POST /auth/change-password` - Change password
+- `POST /auth/logout` - Logout
+
+### Search
+- `GET /search/name?value={query}&size={limit}` - Search by name
+- `GET /search/phone?value={query}&size={limit}` - Search by phone
+- `GET /search/email?value={query}&size={limit}` - Search by email
+- `GET /search/address?value={query}&size={limit}` - Search by address
+
+### Cache Management
+- `GET /api/cache/stats` - Get cache statistics
+- `GET /api/cache/health` - Check Redis connection
+- `POST /api/cache/clear` - Clear all caches
+- `POST /api/cache/clear/{type}` - Clear specific cache (name/phone/email/address)
+
+## 🐛 Troubleshooting
+
+### "Cannot connect to MongoDB"
+1. Check MongoDB is running: `mongosh`
+2. Verify credentials in `application.properties`
+3. Check MongoDB logs
+
+### "Redis connection failed"
+1. Check Redis is running: `redis-cli ping`
+2. Windows: Check Services → Redis is started
+3. Linux: `sudo systemctl status redis`
+
+### "Port 8080 already in use"
+```bash
+# Windows
+netstat -ano | findstr :8080
+taskkill /PID <PID> /F
+
+# Linux
+lsof -i :8080
+kill -9 <PID>
+```
+
+### Build Errors
+```bash
+# Clean and rebuild
+mvn clean
+mvn install -DskipTests
+```
+
+## 📝 Environment Variables
+
+For production deployment, use environment variables instead of hardcoded values:
+```bash
+export MONGODB_URI="mongodb://user:pass@host:port/db"
+export REDIS_HOST="localhost"
+export REDIS_PORT="6379"
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Open Pull Request
+
+## 📄 License
+
+This project is for educational purposes.
+
+## 👥 Authors
+
+- **kenji ** - ANTIC OSINT Tool
+
+## 🙏 Acknowledgments
+
+- Agence Nationale des Technologies de l'Information et de la Communication (ANTIC)
