@@ -27,7 +27,7 @@ A full-stack OSINT (Open Source Intelligence) dashboard for searching and analyz
 
 ### 1. Clone Repository
 ```bash
-git clone https://github.com/YOUR_USERNAME/osint-dashboard.git
+git clone https://github.com/Kenlab-c/osint-dashboard.git
 cd osint-dashboard
 ```
 
