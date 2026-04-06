@@ -1,225 +1,390 @@
-# OSINT Intelligence Dashboard
+# 🛡️ OSINT Intelligence Dashboard — Frontend (React)
 
-A full-stack OSINT (Open Source Intelligence) dashboard for searching and analyzing leaked data with Redis caching for performance.
+**Auteur :** Tchuente Kenmegne Joel Parfait
+**Organisation :** CIRT / ANTIC
+**Projet :** Plateforme d’analyse OSINT des fuites de données
+**Type :** Interface utilisateur (Frontend)
+**Statut :** En développement actif
 
-## 🚀 Features
+---
 
-- **Search leaked data** by name, phone, email, address
-- **Redis caching** for instant repeated searches
-- **User authentication** with password management
-- **Search history** with cache status indicators
-- **Export capabilities** (JSON, CSV, PDF)
-- **Real-time statistics** and visualizations
-- **Dark mode** support
+# 📌 Description
 
-## 📋 Prerequisites
+Ce projet constitue l’interface utilisateur (UI) de la plateforme **OSINT Intelligence Dashboard**, développée pour permettre aux analystes du **CIRT (Centre de Réponse aux Incidents Informatiques)** d’effectuer des recherches rapides et efficaces dans des bases de données de fuites de données.
 
-### Backend
-- Java 17 or higher
-- Maven 3.6+
-- MongoDB 5.0+
-- Redis (optional, for caching)
+L’interface a été conçue pour offrir :
 
-### Frontend
-- Node.js 16+ and npm
+* une expérience utilisateur fluide
+* une recherche rapide et intuitive
+* une visualisation claire des données
+* une interaction sécurisée avec l’API backend
 
-## 🔧 Installation
+Ce README couvre uniquement le **frontend** de la plateforme.
+La documentation du backend sera fournie séparément.
 
-### 1. Clone Repository
+---
+
+# 🚀 Fonctionnalités principales
+
+## 🔎 Recherche de données
+
+Le système permet :
+
+* Recherche par nom
+* Recherche par email
+* Recherche par téléphone
+* Recherche par adresse
+* Recherche multi-critères
+
+Exemple :
+
+```text
+Nom : John Doe
+Téléphone : +237XXXXXXXXX
+Email : john@example.com
+```
+
+---
+
+## ⚡ Indicateurs de cache
+
+Le système affiche :
+
+* si les données proviennent de MongoDB
+* ou du cache Redis
+
+Objectif :
+
+* améliorer la performance
+* informer l’analyste sur la source des données
+
+---
+
+## 📊 Visualisation des données
+
+L’interface fournit :
+
+* graphiques interactifs
+* statistiques en temps réel
+* répartition des fuites par pays
+* analyse par type de données
+
+---
+
+## 📤 Export des résultats
+
+Les résultats peuvent être exportés en :
+
+* JSON
+* CSV
+* PDF
+
+Utilisation :
+
+* rapports d’incident
+* investigations
+* archivage
+
+---
+
+## 🔐 Authentification utilisateur
+
+Le système inclut :
+
+* connexion sécurisée
+* gestion de session
+* changement de mot de passe
+* déconnexion
+
+---
+
+## 🌙 Mode sombre
+
+Support :
+
+* Dark Mode
+* Light Mode
+
+---
+
+## 📈 Statistiques en temps réel
+
+Affichage :
+
+* nombre total de résultats
+* temps de réponse
+* état du système
+* performance du cache
+
+---
+
+# 🛠️ Technologies utilisées
+
+## Frontend
+
+* React.js 18
+* JavaScript (ES6+)
+* HTML5
+* CSS3
+
+## Bibliothèques
+
+* Axios — communication avec l’API REST
+* Chart.js — visualisation des données
+* Lucide React — icônes modernes
+* React Hooks — gestion d’état
+
+---
+
+# 📋 Prérequis
+
+Avant d’installer le frontend, assurez-vous d’avoir :
+
+Node.js :
+
+```bash
+node -v
+```
+
+Version recommandée :
+
+```text
+Node.js 16 ou supérieur
+npm 8 ou supérieur
+```
+
+---
+
+# 📦 Installation
+
+## 1. Cloner le projet
+
 ```bash
 git clone https://github.com/Kenlab-c/osint-dashboard.git
-cd osint-dashboard
 ```
 
-### 2. Setup MongoDB
+---
 
-Follow instructions in `DATABASE_SETUP.md` to:
-- Create MongoDB user
-- Import database
-- Verify data
+## 2. Naviguer dans le dossier frontend
 
-### 3. Setup Redis (Optional but Recommended)
-
-**Windows:**
-- Download from https://github.com/microsoftarchive/redis/releases
-- Install `Redis-x64-3.0.504.msi`
-- Redis runs automatically as service
-
-**Linux:**
 ```bash
-sudo apt-get update
-sudo apt-get install redis-server
-sudo systemctl start redis
+cd frontend
 ```
 
-**Verify Redis:**
+---
+
+## 3. Installer les dépendances
+
 ```bash
-redis-cli ping
-# Should return: PONG
-```
-
-### 4. Configure Backend
-
-Edit `src/main/resources/application.properties`:
-```properties
-# Update MongoDB credentials if needed
-spring.mongodb.uri=mongodb://kenji:Rolosha%40123@127.0.0.1:27017/leaks_db?authSource=admin
-
-# Redis configuration (if using)
-spring.data.redis.host=localhost
-spring.data.redis.port=6379
-```
-
-### 5. Build & Run Backend
-```bash
-# Install dependencies and build
-mvn clean install -DskipTests
-
-# Run application
-mvn spring-boot:run -DskipTests
-```
-
-Backend will start on `http://localhost:8080`
-
-### 6. Setup Frontend
-```bash
-# Navigate to frontend directory
-cd frontend  # or wherever your React app is
-
-# Install dependencies
 npm install
+```
 
-# Start development server
+---
+
+## 4. Lancer le serveur de développement
+
+```bash
 npm start
 ```
 
-Frontend will start on `http://localhost:3000`
+Le frontend sera accessible sur :
 
-## 🧪 Testing
-
-### Backend Health Check
-```bash
-curl http://localhost:8080/search/health
+```text
+http://localhost:3000
 ```
 
-### Redis Cache Check
-```bash
-curl http://localhost:8080/api/cache/health
+---
+
+# 🔗 Configuration de l’API
+
+Le frontend communique avec le backend via une API REST.
+
+Port par défaut :
+
+```text
+http://localhost:8080
 ```
 
-### MongoDB Check
-```bash
-mongosh "mongodb://kenji:Rolosha%40123@127.0.0.1:27017/leaks_db?authSource=admin"
-db.leakeddata.countDocuments()
+Configuration typique :
+
+```javascript
+const API_BASE_URL = "http://localhost:8080";
 ```
 
-## 📁 Project Structure
-```
-osint-dashboard/
+---
+
+# 📁 Structure du projet
+
+```text
+frontend/
+│
+├── public/
+│
 ├── src/
-│   ├── main/
-│   │   ├── java/com/cirt/osint_dashboard/
-│   │   │   ├── config/          # Redis, CORS, Web config
-│   │   │   ├── controller/      # REST endpoints
-│   │   │   ├── model/           # Data models
-│   │   │   ├── repository/      # MongoDB repositories
-│   │   │   ├── service/         # Business logic
-│   │   │   └── dto/             # Data transfer objects
-│   │   └── resources/
-│   │       └── application.properties
-│   └── test/
-├── frontend/                    # React application
-│   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   └── styles/
-│   └── public/
-├── database-backup/            # MongoDB dump
-├── pom.xml                     # Maven configuration
-└── README.md
+│   │
+│   ├── components/
+│   │   ├── SearchForm.js
+│   │   ├── ResultsTable.js
+│   │   ├── Dashboard.js
+│   │   ├── Charts.js
+│   │   └── Navbar.js
+│   │
+│   ├── services/
+│   │   └── api.js
+│   │
+│   ├── pages/
+│   │   ├── Login.js
+│   │   ├── Search.js
+│   │   └── Dashboard.js
+│   │
+│   ├── styles/
+│   │
+│   ├── App.js
+│   └── index.js
+│
+└── package.json
 ```
 
-## 🔑 Default Login Credentials
+---
 
-**Username:** `admin`  
-**Password:** `admin123`
+# 🧪 Tests de fonctionnement
 
-⚠️ **Change default password after first login!**
+## Vérifier que le frontend fonctionne
 
-## 📊 API Endpoints
+Ouvrir :
 
-### Authentication
-- `POST /auth/login` - User login
-- `POST /auth/change-password` - Change password
-- `POST /auth/logout` - Logout
+```text
+http://localhost:3000
+```
 
-### Search
-- `GET /search/name?value={query}&size={limit}` - Search by name
-- `GET /search/phone?value={query}&size={limit}` - Search by phone
-- `GET /search/email?value={query}&size={limit}` - Search by email
-- `GET /search/address?value={query}&size={limit}` - Search by address
+---
 
-### Cache Management
-- `GET /api/cache/stats` - Get cache statistics
-- `GET /api/cache/health` - Check Redis connection
-- `POST /api/cache/clear` - Clear all caches
-- `POST /api/cache/clear/{type}` - Clear specific cache (name/phone/email/address)
+## Vérifier la connexion avec le backend
 
-## 🐛 Troubleshooting
+Test :
 
-### "Cannot connect to MongoDB"
-1. Check MongoDB is running: `mongosh`
-2. Verify credentials in `application.properties`
-3. Check MongoDB logs
+```text
+Login utilisateur
+Effectuer une recherche
+Afficher les résultats
+```
 
-### "Redis connection failed"
-1. Check Redis is running: `redis-cli ping`
-2. Windows: Check Services → Redis is started
-3. Linux: `sudo systemctl status redis`
+---
 
-### "Port 8080 already in use"
+# 🔑 Identifiants par défaut
+
+```text
+Username : admin
+Password : admin123
+```
+
+⚠️ Important :
+
+Changer le mot de passe après la première connexion.
+
+---
+
+# 🐛 Dépannage (Troubleshooting)
+
+## Le frontend ne démarre pas
+
+Exécuter :
+
 ```bash
-# Windows
-netstat -ano | findstr :8080
-taskkill /PID <PID> /F
+npm install
+npm start
+```
 
-# Linux
-lsof -i :8080
+---
+
+## Erreur de connexion à l’API
+
+Vérifier :
+
+* que le backend est lancé
+* que le port 8080 est actif
+* que l’URL de l’API est correcte
+
+---
+
+## Port 3000 déjà utilisé
+
+Linux :
+
+```bash
+lsof -i :3000
 kill -9 <PID>
 ```
 
-### Build Errors
+Windows :
+
 ```bash
-# Clean and rebuild
-mvn clean
-mvn install -DskipTests
+netstat -ano | findstr :3000
+taskkill /PID <PID> /F
 ```
 
-## 📝 Environment Variables
+---
 
-For production deployment, use environment variables instead of hardcoded values:
-```bash
-export MONGODB_URI="mongodb://user:pass@host:port/db"
-export REDIS_HOST="localhost"
-export REDIS_PORT="6379"
+# 🔐 Variables d’environnement (optionnel)
+
+Créer un fichier :
+
+```text
+.env
 ```
 
-## 🤝 Contributing
+Exemple :
 
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Open Pull Request
+```env
+REACT_APP_API_URL=http://localhost:8080
+```
 
-## 📄 License
+---
 
-This project is for educational purposes.
+# 📊 Fonctionnalités prévues (Roadmap)
 
-## 👥 Authors
+Les améliorations futures incluent :
 
-- **kenji ** - ANTIC OSINT Tool
+* Autocomplétion des recherches
+* Recherche floue (Fuzzy Search)
+* Filtres dynamiques
+* Pagination
+* Interface responsive avancée
+* Mode hors ligne
+* Tableau de bord avancé
+* Intégration Elasticsearch
 
-## 🙏 Acknowledgments
+---
 
-- Agence Nationale des Technologies de l'Information et de la Communication (ANTIC)
+# 🤝 Contribution
+
+Étapes :
+
+```bash
+git checkout -b feature/new-feature
+git commit -m "Add new feature"
+git push origin feature/new-feature
+```
+
+---
+
+# 📄 Licence
+
+Projet développé dans un cadre académique et de recherche en cybersécurité.
+
+---
+
+# 👨‍💻 Auteur
+
+Tchuente Kenmegne Joel Parfait
+
+Développeur Web
+Analyste OSINT
+CIRT / ANTIC
+
+---
+
+# 🙏 Remerciements
+
+* Centre de Réponse aux Incidents Informatiques (CIRT)
+* Agence Nationale des Technologies de l’Information et de la Communication (ANTIC)
