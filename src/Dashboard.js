@@ -7,28 +7,37 @@ import FilterOptions from "./components/FilterOptions";
 import AddressChart from "./components/AddressChart";
 import CountryChart from "./components/CountryChart";
 import { pushReport } from "./Reports";
-import { getCountryFromRecord, getCountryFlag } from "./utils/phoneUtils";  // ADDED getCountryFlag
+import { getCountryFromRecord, getCountryFlag } from "./utils/phoneUtils";
 import "./styles.css";
 
 const API = "http://localhost:8080";
 
 export default function Dashboard({ darkMode, setDarkMode }) {
-  const [results, setResults] = useState([]);
-  const [allResults, setAllResults] = useState([]);
+  // ÉTATS DES DONNÉES
+  const [results, setResults] = useState([]); // Résultats bruts du backend
   const [selected, setSelected] = useState(null);
-  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
-  const [totalCount, setTotalCount] = useState(0);
+  const [backendStatus, setBackendStatus] = useState("checking...");
+
+  // ÉTATS DE RECHERCHE ET PAGINATION
+  const [query, setQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(0);
+  const [resultSize, setResultSize] = useState(50); 
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalCount, setTotalCount] = useState(0); // Total global en DB
+
+  // ÉTATS DES FILTRES
   const [filterField, setFilterField] = useState("");
   const [filterValue, setFilterValue] = useState("");
   const [filteredView, setFilteredView] = useState(null);
   const [activeChartFilter, setActiveChartFilter] = useState(null);
-  const [backendStatus, setBackendStatus] = useState("checking...");
-  
-  // NEW: Result size selector (10k, 30k, 50k, 100k)
-  const [resultSize, setResultSize] = useState(10000);
 
   const tableRef = useRef();
+
+  // CALCUL DYNAMIQUE DES RÉSULTATS AFFICHÉS (Pour StatsPanel et Footer)
+  // Si un filtre est actif, on compte le filteredView, sinon les résultats de la page
+  const shown = filteredView !== null ? filteredView : results;
+  const displayCount = filteredView !== null ? filteredView.length : totalCount;
 
   /* =============================
      HEALTH CHECK
@@ -42,238 +51,179 @@ export default function Dashboard({ darkMode, setDarkMode }) {
 
   /* =============================
      AUTO-SEARCH FROM REPORTS
-     Listen for custom event
      ============================= */
   useEffect(() => {
     const handleAutoSearch = (event) => {
       const searchQuery = event.detail?.query;
-      if (searchQuery) {
-        console.log("🔄 Auto-searching from report:", searchQuery);
-        fetchResults(searchQuery);
-      }
+      if (searchQuery) fetchResults(searchQuery, 0);
     };
-
     window.addEventListener("osint:auto-search", handleAutoSearch);
     return () => window.removeEventListener("osint:auto-search", handleAutoSearch);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Intentionally empty - only set up listener once
+  }, [resultSize]);
 
   /* =============================
-     SEARCH HANDLER
+     SEARCH HANDLER (PAGINATED & GLOBAL)
      ============================= */
-
-     /* =============================
-     SEARCH HANDLER (GLOBAL OPTIMIZED)
-     ============================= */
-  const fetchResults = async (value) => {
+  const fetchResults = async (value, page = 0) => {
     setLoading(true);
+    setCurrentPage(page);
+    
     try {
-      // On utilise désormais la route /global pour chercher partout simultanément
-      // (Nom, téléphone, email, adresse, ville...)
-      let url = `${API}/search/global?value=${encodeURIComponent(value)}&size=${resultSize}`;
+      const encodedValue = encodeURIComponent(value);
+      const url = `${API}/search/global?value=${encodedValue}&page=${page}&size=${resultSize}`;
       
-      console.log("🔍 Global OSINT Search:", url);
+      console.log(`🔍 Query: ${value} | Page: ${page}`);
 
       const res = await fetch(url);
-      
-      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      if (!res.ok) throw new Error(`Server Error: ${res.status}`);
 
       const data = await res.json();
+      
       const fetchedResults = data.results || [];
-      const total = data.total || fetchedResults.length;
-
-      console.log(`✅ Found ${total} results across all fields`);
+      const totalElements = data.total || 0;
+      const totalP = data.totalPages || 0;
 
       setResults(fetchedResults);
-      setAllResults(fetchedResults);
-      setTotalCount(total);
-      setQuery(value || "(all)");
+      setTotalCount(totalElements);
+      setTotalPages(totalP);
+      setQuery(value || "");
 
-      // Reset des filtres visuels
-      setActiveChartFilter(null);
-      setFilteredView(null);
-      setFilterField("");
-      setFilterValue("");
+      // Reset des filtres visuels lors d'une NOUVELLE recherche uniquement (page 0)
+      if (page === 0) {
+        setFilteredView(null);
+        setActiveChartFilter(null);
+        setFilterField("");
+        setFilterValue("");
+      }
 
-      // Enregistrement dans le rapport local
       pushReport({
         query: value,
         field: "global",
-        total: total,
-        resultSize: resultSize,
+        total: totalElements,
+        page: page,
         timestamp: new Date().toLocaleString()
       });
 
-      // Scroll vers le tableau
-      setTimeout(() => {
-        tableRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
-
     } catch (err) {
       console.error("❌ Search failed:", err);
-      alert("Search failed. Ensure Backend is running and 'leakeddata' index is created.");
       setResults([]);
-      setAllResults([]);
     } finally {
       setLoading(false);
     }
   };
 
   /* =============================
-     MANUAL FILTER HANDLING
+     PAGINATION CONTROL
+     ============================= */
+  const handlePageChange = (newPage) => {
+    if (newPage >= 0 && newPage < totalPages) {
+      fetchResults(query, newPage);
+      setTimeout(() => {
+        tableRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    }
+  };
+
+  /* =============================
+     FILTERS LOGIC (COMBINÉ AVEC RECHERCHE)
      ============================= */
   const applyFilter = () => {
-    if (!filterField || !filterValue.trim()) {
-      alert("⚠️ Please select a field and enter a value");
-      return;
-    }
-
-    console.log(`🔍 Applying filter: ${filterField} = "${filterValue}"`);
-
-    const filtered = allResults.filter(r => {
-      // Special handling for country field
-      if (filterField === "country") {
-        const recordCountry = getCountryFromRecord(r);
-        return recordCountry && 
-               recordCountry.toLowerCase().includes(filterValue.toLowerCase());
-      }
+    if (!filterField || !filterValue.trim()) return;
+    
+    const searchVal = filterValue.toLowerCase();
+    const filtered = results.filter(r => {
+      const fieldValue = String(r[filterField] || "").toLowerCase();
       
-      // Special handling for sex field (handles multiple languages)
-      if (filterField === "sex") {
-        const recordSex = String(r.sex || "").trim().toLowerCase();
-        const searchSex = filterValue.trim().toLowerCase();
-        
-        // Direct exact match first
-        if (recordSex === searchSex) {
-          return true;
-        }
-        
-        // Handle English variations
-        if (searchSex === "m" || searchSex === "male") {
-          return recordSex === "male" || recordSex === "m" || recordSex === "laki-laki" || recordSex === "ذكر";
-        }
-        
-        if (searchSex === "f" || searchSex === "female") {
-          return recordSex === "female" || recordSex === "f" || recordSex === "perempuan" || recordSex === "أنثى";
-        }
-        
-        // Handle Indonesian
-        if (searchSex === "laki-laki") {
-          return recordSex === "male" || recordSex === "m" || recordSex === "laki-laki" || recordSex === "ذكر";
-        }
-        
-        if (searchSex === "perempuan") {
-          return recordSex === "female" || recordSex === "f" || recordSex === "perempuan" || recordSex === "أنثى";
-        }
-        
-        return false; // No match
+      // Cas particulier pour le sexe
+      if (filterField === 'sex') {
+        if (searchVal.startsWith('m')) return fieldValue === 'm';
+        if (searchVal.startsWith('f')) return fieldValue === 'f';
       }
-      
-      // For other fields (address1), use contains
-      const fieldValue = String(r[filterField] || "").trim();
-      return fieldValue.toLowerCase().includes(filterValue.toLowerCase());
+      return fieldValue.includes(searchVal);
     });
 
-    console.log(`✅ Filter results: ${filtered.length} of ${allResults.length}`);
-    
-    if (filtered.length === 0) {
-      alert(`⚠️ No records found matching ${filterField} = "${filterValue}"`);
-    }
-    
     setFilteredView(filtered);
-    setActiveChartFilter(null);
+    setActiveChartFilter({ type: filterField, value: filterValue });
   };
 
+  /* =============================
+     RÉINITIALISATION COMPLÈTE DES FILTRES
+     ============================= */
   const clearFilter = () => {
-    console.log("🧹 Clearing all filters");
+    console.log("🧹 Nettoyage des filtres actifs...");
+    
+    // 1. On réinitialise les états de filtrage
     setFilteredView(null);
     setActiveChartFilter(null);
-    setFilterField("");
-    setFilterValue("");
-    setResults(allResults);
+    
+    // 2. On vide explicitement les champs
+    setFilterField("");   // Remet le <select> à "Filtrer par champ..."
+    setFilterValue("");   // Vide la valeur pour FilterOptions
+    
+    // On ne touche pas à fetchResults pour garder la recherche globale intacte
   };
+
+  // ... (dans le return du Dashboard) ...
+
+  {/* FILTERS SECTION */}
+  <div className="filters">
+    <div className="filter-group">
+      <select 
+        value={filterField} // Contrôlé par l'état
+        onChange={e => { 
+          setFilterField(e.target.value); 
+          setFilterValue(""); // Reset de la valeur quand on change de champ
+        }}
+        className="filter-select"
+      >
+        <option value="">Filtrer par champ...</option>
+        <option value="country">🌍 Pays</option>
+        <option value="address1">📍 Adresse</option>
+        <option value="sex">👤 Sexe</option>
+        <option value="occupation">💼 Profession</option>
+      </select>
+
+      {/* IMPORTANT: FilterOptions DOIT utiliser 'value' pour être vidé.
+          On ajoute une 'key' dynamique basée sur filterField pour forcer 
+          le composant à se re-charger proprement quand on change de filtre.
+      */}
+      <FilterOptions
+        key={filterField} 
+        records={results}
+        field={filterField}
+        value={filterValue} // Reçoit le "" de clearFilter
+        onChange={setFilterValue}
+      />
+    </div>
+    <div className="filter-actions">
+      <button onClick={applyFilter} className="btn-filter-apply">✓ Appliquer</button>
+      <button onClick={clearFilter} className="btn-filter-clear">✕ Réinitialiser</button>
+    </div>
+  </div>
 
   /* =============================
      CHART CLICK HANDLERS
      ============================= */
   const handleAddressClick = (address) => {
     if (!address) return;
-    
-    console.log(`🏠 Filtering by address: "${address}"`);
-    
-    const filtered = allResults.filter(r => {
-      const recordAddress = (r.address1 || r.placeofbirth || "").trim();
-      return recordAddress.toLowerCase() === address.toLowerCase();
-    });
-    
-    console.log(`✅ Address filter: ${filtered.length} results`);
+    const filtered = results.filter(r => 
+      (r.address1 || "").toLowerCase().includes(address.toLowerCase())
+    );
     setFilteredView(filtered);
     setActiveChartFilter({ type: 'address', value: address });
-    
-    setTimeout(() => {
-      tableRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
   };
 
   const handleCountryClick = (country) => {
     if (!country) return;
-    
-    console.log(`🌍 Filtering by country: "${country}"`);
-    
-    const filtered = allResults.filter(r => {
-      const recordCountry = getCountryFromRecord(r);
-      if (!recordCountry) return false;
-      return recordCountry.toLowerCase() === country.toLowerCase();
-    });
-    
-    console.log(`✅ Country filter: ${filtered.length} results`);
-    
-    if (filtered.length === 0) {
-      alert(`⚠️ No records found for country "${country}"`);
-    }
-    
+    const filtered = results.filter(r => 
+      getCountryFromRecord(r).toLowerCase() === country.toLowerCase()
+    );
     setFilteredView(filtered);
     setActiveChartFilter({ type: 'country', value: country });
-    
-    setTimeout(() => {
-      tableRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
   };
 
-  /* =============================
-     SHOW ALL RESULTS
-     Clears size limit and fetches all
-     ============================= */
-  const showAllResults = async () => {
-    if (!query) {
-      alert("⚠️ Please perform a search first");
-      return;
-    }
+  const handleSelect = (record) => setSelected(record);
 
-    const confirmed = window.confirm(
-      `⚠️ This will fetch ALL results (current limit: ${resultSize}).\n\n` +
-      `Total available: ${totalCount.toLocaleString()}\n\n` +
-      `This may take a while. Continue?`
-    );
-
-    if (!confirmed) return;
-
-    setResultSize(totalCount);
-    fetchResults(query);
-  };
-
-  /* =============================
-     RECORD SELECT
-     ============================= */
-  const handleSelect = (record) => {
-    setSelected(record);
-  };
-
-  const shown = filteredView !== null ? filteredView : results;
-
-  /* =============================
-     RENDER
-     ============================= */
   return (
     <div className={`dashboard-view ${darkMode ? "dark" : ""}`}>
       
@@ -283,150 +233,95 @@ export default function Dashboard({ darkMode, setDarkMode }) {
           <button className="theme-toggle" onClick={() => setDarkMode(!darkMode)}>
             {darkMode ? "☀️" : "🌙"}
           </button>
-
           <div className="header-center">
-            <img 
-              src="/antic-logo.png" 
-              alt="ANTIC Logo" 
-              className="antic-logo-img"
-              onError={(e) => {
-                e.target.style.display = 'none';
-                e.target.nextSibling.style.display = 'flex';
-              }}
-            />
-            <div className="osint-brand" style={{ display: 'none' }}>
-              <div className="osint-logo">🕵️</div>
-              <div>
-                <div className="brand-title">OSINT</div>
-                <div className="brand-subtitle">Intelligence Platform</div>
-              </div>
-            </div>
-            
+            <img src="/antic-logo.png" alt="ANTIC" className="antic-logo-img" />
             <h1>OSINT Intelligence Dashboard</h1>
             <p>CIRT Onsite OSINT Tool - ANTIC</p>
           </div>
-
           <div className="header-spacer"></div>
         </div>
       </div>
 
-      {/* SEARCH BAR WITH RESULT SIZE SELECTOR */}
+      {/* SEARCH CONTROLS */}
       <div className="search-controls">
-        <SearchBar onSearch={fetchResults} />
-        
+        <SearchBar onSearch={(q) => fetchResults(q, 0)} />
         <div className="result-size-selector">
-          <label>Result Limit:</label>
+          <label>Taille de page:</label>
           <select 
             value={resultSize} 
-            onChange={(e) => setResultSize(Number(e.target.value))}
+            onChange={(e) => {
+              setResultSize(Number(e.target.value));
+              if (query) fetchResults(query, 0);
+            }}
             className="size-select"
           >
-            <option value={10000}>10,000</option>
-            <option value={30000}>30,000</option>
-            <option value={50000}>50,000</option>
-            <option value={100000}>100,000</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+            <option value={500}>500</option>
           </select>
-          
-          {totalCount > resultSize && (
-            <button onClick={showAllResults} className="btn-show-all">
-              📊 Show All ({totalCount.toLocaleString()})
-            </button>
-          )}
         </div>
       </div>
 
-      {/* ACTIVE FILTER INDICATOR */}
-      {activeChartFilter && (
-        <div className="active-filter-badge">
-          <span>
-            {activeChartFilter.type === 'address' ? '📍' : '🌍'} 
-            {' '}Filtered by {activeChartFilter.type}: 
-            <strong> {activeChartFilter.value}</strong>
-            {' '}({shown.length} results)
-          </span>
-          <button onClick={clearFilter} className="clear-filter-btn">
-            ✕ Clear Filter
-          </button>
-        </div>
-      )}
-
-      {/* MANUAL FILTERS */}
+      {/* FILTERS SECTION */}
       <div className="filters">
         <div className="filter-group">
           <select 
             value={filterField} 
-            onChange={e => {
-              setFilterField(e.target.value);
-              setFilterValue("");
-            }}
+            onChange={e => { setFilterField(e.target.value); setFilterValue(""); }}
             className="filter-select"
           >
-            <option value="">Select Field</option>
-            <option value="country">🌍 Country</option>
-            <option value="address1">📍 Address</option>
-            <option value="sex">👤 Sex</option>
+            <option value="">Filtrer par champ...</option>
+            <option value="country">🌍 Pays</option>
+            <option value="address1">📍 Adresse</option>
+            <option value="sex">👤 Sexe</option>
+            <option value="occupation">💼 Profession</option>
           </select>
 
           <FilterOptions
-            records={allResults}
+            records={results}
             field={filterField}
             value={filterValue}
             onChange={setFilterValue}
-            placeholder={filterField ? `Enter ${filterField}...` : "Select a field first"}
           />
         </div>
-
         <div className="filter-actions">
-          <button onClick={applyFilter} className="btn-filter-apply">
-            ✓ Apply Filter
-          </button>
-          <button onClick={clearFilter} className="btn-filter-clear">
-            ✕ Clear
-          </button>
+          <button onClick={applyFilter} className="btn-filter-apply">✓ Appliquer</button>
+          <button onClick={clearFilter} className="btn-filter-clear">✕ Réinitialiser</button>
         </div>
       </div>
 
-      {/* CHARTS */}
+      {/* CHARTS & STATS DYNAMIQUES */}
       <div className="charts-grid">
-        <AddressChart 
-          records={allResults} 
-          onSelectAddress={handleAddressClick}
-        />
-        <CountryChart 
-          records={allResults} 
-          onSelectCountry={handleCountryClick}
-        />
+        <AddressChart records={shown} onSelectAddress={handleAddressClick} />
+        <CountryChart records={shown} onSelectCountry={handleCountryClick} />
       </div>
 
-      {/* STATS */}
-      <StatsPanel records={allResults} filteredRecords={shown} />
+      {/* On passe 'shown' pour que les stats changent avec le filtre */}
+      <StatsPanel records={shown} totalCount={displayCount} />
 
-      {/* TABLE */}
+      {/* DATA TABLE */}
       <div ref={tableRef}>
         <DataTable
           records={shown}
           loading={loading}
-          totalCount={totalCount}
+          totalCount={displayCount} // Affiche le compte filtré ou total
           onSelect={handleSelect}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
         />
       </div>
 
-      {/* FOOTER */}
+      {/* FOOTER SYNCHRONISÉ */}
       <footer className="audit-footer">
         <strong>
-          Showing {shown.length.toLocaleString()} of {totalCount.toLocaleString()}
+          Résultats : {displayCount.toLocaleString()} | Page {currentPage + 1} / {totalPages}
         </strong>
-        <span>Backend: {backendStatus}</span>
-        <span>Limit: {resultSize.toLocaleString()}</span>
+        <span>Statut Backend: {backendStatus}</span>
       </footer>
 
       {/* MODAL */}
-      {selected && (
-        <ProfileModal
-          person={selected}
-          onClose={() => setSelected(null)}
-        />
-      )}
+      {selected && <ProfileModal person={selected} onClose={() => setSelected(null)} />}
     </div>
   );
 }
