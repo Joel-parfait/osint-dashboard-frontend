@@ -34,14 +34,16 @@ export default function ProfileModal({ person, onClose }) {
       fields: [
         { key: "name", label: "Full Name" },
         { key: "sex", label: "Gender" },
-        { key: "dob", label: "Date of Birth" }
+        { key: "date_of_birth", label: "Date of Birth" }, // Mis à jour pour correspondre à la BD
+        { key: "maritalstatus", label: "Marital Status" } // NOUVEAU
       ]
     },
     {
       icon: "💼",
       label: "Professional Information", 
       fields: [
-        { key: "occupation", label: "Occupation" }
+        { key: "occupation", label: "Occupation" },
+        { key: "placeofwork", label: "Place of Work" } // NOUVEAU
       ]
     },
     {
@@ -78,7 +80,7 @@ export default function ProfileModal({ person, onClose }) {
       fields: [
         { key: "address1", label: "Address 1" },
         { key: "address2", label: "Address 2" },
-        { key: "town", label: "Town" },
+        { key: "city", label: "City/Town" }, // Mis à jour
         { key: "placeofbirth", label: "Place of Birth" },
         { 
           key: "country", 
@@ -99,10 +101,12 @@ export default function ProfileModal({ person, onClose }) {
     },
     {
       icon: "🆔",
-      label: "Identifiers",
+      label: "Identifiers & Meta",
       fields: [
-        { key: "nui", label: "NUI" },
-        { key: "facebook_id", label: "Facebook ID" }
+        { key: "nui", label: "NUI (National Unique ID)" },
+        { key: "facebookId", label: "Facebook ID" }, // Mis à jour camelCase
+        { key: "creationdatetime", label: "Data Indexed On" }, // NOUVEAU
+        { key: "raw", label: "Raw Source Reference" } // NOUVEAU
       ]
     }
   ];
@@ -141,12 +145,12 @@ export default function ProfileModal({ person, onClose }) {
               </div>
               <div className="field-grid">
                 {group.fields.map((field) => (
-                  (person[field.key] || field.value || (field.key === 'country' && country)) && (
+                  (person[field.key] || field.value) && (
                     <div key={field.key} className="field-sticker">
                       <div className="field-sticker-icon">{getFieldIcon(field.key)}</div>
                       <div className="field-sticker-content">
                         <label>{field.label}</label>
-                        <span>{field.value || person[field.key] || (field.key === 'country' ? country : "")}</span>
+                        <span>{field.value || person[field.key]}</span>
                       </div>
                     </div>
                   )
@@ -171,21 +175,24 @@ export default function ProfileModal({ person, onClose }) {
   );
 }
 
-// Helper function to get icons for specific fields
 function getFieldIcon(fieldKey) {
   const icons = {
     name: "👤",
     sex: "⚧",
-    dob: "📅", 
+    date_of_birth: "📅", 
+    maritalstatus: "💍",
     occupation: "💼",
+    placeofwork: "🏢",
     email: "📧",
     phonenumber: "📱",
     address1: "🏠",
     address2: "📍",
-    town: "🏙️",
+    city: "🏙️",
     placeofbirth: "🌍",
     nui: "🆔",
-    facebook_id: "👥",
+    facebookId: "👥",
+    creationdatetime: "🕒",
+    raw: "📄",
     country: "🌐"
   };
   return icons[fieldKey] || "📄";

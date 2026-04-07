@@ -61,87 +61,57 @@ export default function Dashboard({ darkMode, setDarkMode }) {
   /* =============================
      SEARCH HANDLER
      ============================= */
+
+     /* =============================
+     SEARCH HANDLER (GLOBAL OPTIMIZED)
+     ============================= */
   const fetchResults = async (value) => {
     setLoading(true);
     try {
-      let url = `${API}/search/name?value=${encodeURIComponent(value)}&size=${resultSize}`;
-      let searchType = "name";
-
-      if (/^\+?\d+$/.test(value)) {
-        url = `${API}/search/phone?value=${value}&size=${resultSize}`;
-        searchType = "phone";
-      } else if (value.includes("@")) {
-        url = `${API}/search/email?value=${value}&size=${resultSize}`;
-        searchType = "email";
-      }
-
-      console.log("🔍 Searching:", url);
+      // On utilise désormais la route /global pour chercher partout simultanément
+      // (Nom, téléphone, email, adresse, ville...)
+      let url = `${API}/search/global?value=${encodeURIComponent(value)}&size=${resultSize}`;
+      
+      console.log("🔍 Global OSINT Search:", url);
 
       const res = await fetch(url);
+      
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+
       const data = await res.json();
       const fetchedResults = data.results || [];
       const total = data.total || fetchedResults.length;
 
-      console.log(`✅ Found ${total} results (showing ${fetchedResults.length})`);
-
-      // 🔍 DEBUG: Check data structure
-      if (fetchedResults.length > 0) {
-        console.log("=== 🚨 DATA DEBUG - READ THIS! 🚨 ===");
-        console.log("First record sample:", fetchedResults[0]);
-        
-        // Check sex values
-        const sexValues = new Set(fetchedResults.map(r => r.sex).filter(Boolean));
-        console.log("📊 Unique sex values:", Array.from(sexValues));
-        
-        // Check country values
-        const countryValues = new Set(fetchedResults.map(r => r.country).filter(Boolean));
-        console.log("🌍 Unique country values (raw from DB):", Array.from(countryValues).slice(0, 10));
-        
-        // Check extraction
-        console.log("🔍 Country extraction test (first 5):");
-        fetchedResults.slice(0, 5).forEach((r, i) => {
-          const extracted = getCountryFromRecord(r);
-          const flag = getCountryFlag(extracted);
-          console.log(`  ${i + 1}. ${r.name}:`);
-          console.log(`     DB country: "${r.country}"`);
-          console.log(`     Phone: "${r.phonenumber}"`);
-          console.log(`     Address: "${r.address1}"`);
-          console.log(`     Extracted: "${extracted}"`);
-          console.log(`     Flag: "${flag}" (Should be colored emoji like 🇨🇲)`);
-          console.log("     ---");
-        });
-        
-        console.log("🎯 LOOK AT YOUR TABLE:");
-        console.log("   If you see 'ZA South Africa' instead of '🇿🇦 South Africa',");
-        console.log("   then the flag emoji is not rendering properly.");
-        console.log("======================================");
-      }
+      console.log(`✅ Found ${total} results across all fields`);
 
       setResults(fetchedResults);
       setAllResults(fetchedResults);
       setTotalCount(total);
       setQuery(value || "(all)");
 
+      // Reset des filtres visuels
       setActiveChartFilter(null);
       setFilteredView(null);
       setFilterField("");
       setFilterValue("");
 
+      // Enregistrement dans le rapport local
       pushReport({
         query: value,
-        field: searchType,
+        field: "global",
         total: total,
         resultSize: resultSize,
         timestamp: new Date().toLocaleString()
       });
 
+      // Scroll vers le tableau
       setTimeout(() => {
         tableRef.current?.scrollIntoView({ behavior: "smooth" });
       }, 100);
 
     } catch (err) {
       console.error("❌ Search failed:", err);
-      alert("Search failed. Check console for details.");
+      alert("Search failed. Ensure Backend is running and 'leakeddata' index is created.");
       setResults([]);
       setAllResults([]);
     } finally {
