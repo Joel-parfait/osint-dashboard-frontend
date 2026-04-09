@@ -7,222 +7,122 @@ import FilterOptions from "./components/FilterOptions";
 import AddressChart from "./components/AddressChart";
 import CountryChart from "./components/CountryChart";
 import { pushReport } from "./Reports";
-import { getCountryFromRecord, getCountryFlag } from "./utils/phoneUtils";
+import { getCountryFromRecord } from "./utils/phoneUtils";
 import "./styles.css";
 
 const API = "http://localhost:8080";
 
 export default function Dashboard({ darkMode, setDarkMode }) {
-  // ÉTATS DES DONNÉES
-  const [results, setResults] = useState([]); // Résultats bruts du backend
+  // --- ÉTATS DES DONNÉES ---
+  const [results, setResults] = useState([]);
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [backendStatus, setBackendStatus] = useState("checking...");
+  const [backendStatus, setBackendStatus] = useState("Vérification...");
 
-  // ÉTATS DE RECHERCHE ET PAGINATION
+  // --- ÉTATS DE RECHERCHE ET PAGINATION ---
   const [query, setQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(0);
   const [resultSize, setResultSize] = useState(50); 
   const [totalPages, setTotalPages] = useState(0);
-  const [totalCount, setTotalCount] = useState(0); // Total global en DB
+  const [totalCount, setTotalCount] = useState(0);
 
-  // ÉTATS DES FILTRES
+  // --- ÉTATS DES FILTRES ---
   const [filterField, setFilterField] = useState("");
   const [filterValue, setFilterValue] = useState("");
-  const [filteredView, setFilteredView] = useState(null);
   const [activeChartFilter, setActiveChartFilter] = useState(null);
 
   const tableRef = useRef();
 
-  // CALCUL DYNAMIQUE DES RÉSULTATS AFFICHÉS (Pour StatsPanel et Footer)
-  // Si un filtre est actif, on compte le filteredView, sinon les résultats de la page
-  const shown = filteredView !== null ? filteredView : results;
-  const displayCount = filteredView !== null ? filteredView.length : totalCount;
-
   /* =============================
-     HEALTH CHECK
+     VÉRIFICATION SANTÉ BACKEND
      ============================= */
   useEffect(() => {
     fetch(`${API}/search/health`)
       .then(r => r.json())
-      .then(() => setBackendStatus("✅ Connected"))
-      .catch(() => setBackendStatus("❌ Offline"));
+      .then(() => setBackendStatus("✅ Connecté"))
+      .catch(() => setBackendStatus("❌ Hors ligne"));
   }, []);
 
   /* =============================
-     AUTO-SEARCH FROM REPORTS
+     MOTEUR DE RECHERCHE (BACKEND)
+     Gère la pagination et les filtres combinés
      ============================= */
-  useEffect(() => {
-    const handleAutoSearch = (event) => {
-      const searchQuery = event.detail?.query;
-      if (searchQuery) fetchResults(searchQuery, 0);
-    };
-    window.addEventListener("osint:auto-search", handleAutoSearch);
-    return () => window.removeEventListener("osint:auto-search", handleAutoSearch);
-  }, [resultSize]);
-
-  /* =============================
-     SEARCH HANDLER (PAGINATED & GLOBAL)
-     ============================= */
-  const fetchResults = async (value, page = 0) => {
+  const fetchResults = async (searchValue, page = 0, fField = filterField, fValue = filterValue) => {
     setLoading(true);
     setCurrentPage(page);
     
     try {
-      const encodedValue = encodeURIComponent(value);
-      const url = `${API}/search/global?value=${encodedValue}&page=${page}&size=${resultSize}`;
+      const encodedValue = encodeURIComponent(searchValue);
+      // On construit l'URL avec les paramètres de pagination
+      let url = `${API}/search/global?value=${encodedValue}&page=${page}&size=${resultSize}`;
       
-      console.log(`🔍 Query: ${value} | Page: ${page}`);
+      // Si un filtre est sélectionné, on l'ajoute à la requête Backend
+      if (fField && fValue) {
+        url += `&filterField=${fField}&filterValue=${encodeURIComponent(fValue)}`;
+      }
+
+      console.log(`🔍 Requête ANTIC: ${url}`);
 
       const res = await fetch(url);
-      if (!res.ok) throw new Error(`Server Error: ${res.status}`);
+      if (!res.ok) throw new Error(`Erreur: ${res.status}`);
 
       const data = await res.json();
       
-      const fetchedResults = data.results || [];
-      const totalElements = data.total || 0;
-      const totalP = data.totalPages || 0;
+      setResults(data.results || []);
+      setTotalCount(data.total || 0); // Le VRAI total filtré en base
+      setTotalPages(data.totalPages || 0);
+      setQuery(searchValue || "");
 
-      setResults(fetchedResults);
-      setTotalCount(totalElements);
-      setTotalPages(totalP);
-      setQuery(value || "");
-
-      // Reset des filtres visuels lors d'une NOUVELLE recherche uniquement (page 0)
-      if (page === 0) {
-        setFilteredView(null);
-        setActiveChartFilter(null);
-        setFilterField("");
-        setFilterValue("");
+      // Scroll vers le tableau
+      if (page > 0) {
+        setTimeout(() => tableRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
       }
 
       pushReport({
-        query: value,
-        field: "global",
-        total: totalElements,
-        page: page,
+        query: searchValue,
+        filter: fField ? `${fField}:${fValue}` : "none",
+        total: data.total,
         timestamp: new Date().toLocaleString()
       });
 
     } catch (err) {
-      console.error("❌ Search failed:", err);
+      console.error("❌ Échec recherche:", err);
       setResults([]);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
   };
 
   /* =============================
-     PAGINATION CONTROL
+     GESTIONNAIRES D'ACTIONS
      ============================= */
+
   const handlePageChange = (newPage) => {
-    if (newPage >= 0 && newPage < totalPages) {
-      fetchResults(query, newPage);
-      setTimeout(() => {
-        tableRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
-    }
+    fetchResults(query, newPage);
   };
 
-  /* =============================
-     FILTERS LOGIC (COMBINÉ AVEC RECHERCHE)
-     ============================= */
   const applyFilter = () => {
     if (!filterField || !filterValue.trim()) return;
-    
-    const searchVal = filterValue.toLowerCase();
-    const filtered = results.filter(r => {
-      const fieldValue = String(r[filterField] || "").toLowerCase();
-      
-      // Cas particulier pour le sexe
-      if (filterField === 'sex') {
-        if (searchVal.startsWith('m')) return fieldValue === 'm';
-        if (searchVal.startsWith('f')) return fieldValue === 'f';
-      }
-      return fieldValue.includes(searchVal);
-    });
-
-    setFilteredView(filtered);
+    // On relance la recherche depuis la page 0 avec le nouveau filtre
+    fetchResults(query, 0, filterField, filterValue);
     setActiveChartFilter({ type: filterField, value: filterValue });
   };
 
-  /* =============================
-     RÉINITIALISATION COMPLÈTE DES FILTRES
-     ============================= */
   const clearFilter = () => {
-    console.log("🧹 Nettoyage des filtres actifs...");
-    
-    // 1. On réinitialise les états de filtrage
-    setFilteredView(null);
+    setFilterField("");
+    setFilterValue("");
     setActiveChartFilter(null);
-    
-    // 2. On vide explicitement les champs
-    setFilterField("");   // Remet le <select> à "Filtrer par champ..."
-    setFilterValue("");   // Vide la valeur pour FilterOptions
-    
-    // On ne touche pas à fetchResults pour garder la recherche globale intacte
+    // On recharge les données sans filtre
+    fetchResults(query, 0, "", "");
   };
 
-  // ... (dans le return du Dashboard) ...
-
-  {/* FILTERS SECTION */}
-  <div className="filters">
-    <div className="filter-group">
-      <select 
-        value={filterField} // Contrôlé par l'état
-        onChange={e => { 
-          setFilterField(e.target.value); 
-          setFilterValue(""); // Reset de la valeur quand on change de champ
-        }}
-        className="filter-select"
-      >
-        <option value="">Filtrer par champ...</option>
-        <option value="country">🌍 Pays</option>
-        <option value="address1">📍 Adresse</option>
-        <option value="sex">👤 Sexe</option>
-        <option value="occupation">💼 Profession</option>
-      </select>
-
-      {/* IMPORTANT: FilterOptions DOIT utiliser 'value' pour être vidé.
-          On ajoute une 'key' dynamique basée sur filterField pour forcer 
-          le composant à se re-charger proprement quand on change de filtre.
-      */}
-      <FilterOptions
-        key={filterField} 
-        records={results}
-        field={filterField}
-        value={filterValue} // Reçoit le "" de clearFilter
-        onChange={setFilterValue}
-      />
-    </div>
-    <div className="filter-actions">
-      <button onClick={applyFilter} className="btn-filter-apply">✓ Appliquer</button>
-      <button onClick={clearFilter} className="btn-filter-clear">✕ Réinitialiser</button>
-    </div>
-  </div>
-
-  /* =============================
-     CHART CLICK HANDLERS
-     ============================= */
-  const handleAddressClick = (address) => {
-    if (!address) return;
-    const filtered = results.filter(r => 
-      (r.address1 || "").toLowerCase().includes(address.toLowerCase())
-    );
-    setFilteredView(filtered);
-    setActiveChartFilter({ type: 'address', value: address });
+  const handleChartClick = (type, val) => {
+    setFilterField(type);
+    setFilterValue(val);
+    fetchResults(query, 0, type, val);
+    setActiveChartFilter({ type, value: val });
   };
-
-  const handleCountryClick = (country) => {
-    if (!country) return;
-    const filtered = results.filter(r => 
-      getCountryFromRecord(r).toLowerCase() === country.toLowerCase()
-    );
-    setFilteredView(filtered);
-    setActiveChartFilter({ type: 'country', value: country });
-  };
-
-  const handleSelect = (record) => setSelected(record);
 
   return (
     <div className={`dashboard-view ${darkMode ? "dark" : ""}`}>
@@ -242,16 +142,16 @@ export default function Dashboard({ darkMode, setDarkMode }) {
         </div>
       </div>
 
-      {/* SEARCH CONTROLS */}
+      {/* RECHERCHE ET TAILLE */}
       <div className="search-controls">
         <SearchBar onSearch={(q) => fetchResults(q, 0)} />
         <div className="result-size-selector">
-          <label>Taille de page:</label>
+          <label>Taille page:</label>
           <select 
             value={resultSize} 
             onChange={(e) => {
               setResultSize(Number(e.target.value));
-              if (query) fetchResults(query, 0);
+              fetchResults(query, 0); 
             }}
             className="size-select"
           >
@@ -262,7 +162,7 @@ export default function Dashboard({ darkMode, setDarkMode }) {
         </div>
       </div>
 
-      {/* FILTERS SECTION */}
+      {/* FILTRES DYNAMIQUES */}
       <div className="filters">
         <div className="filter-group">
           <select 
@@ -278,6 +178,7 @@ export default function Dashboard({ darkMode, setDarkMode }) {
           </select>
 
           <FilterOptions
+            key={filterField} // Force le reset visuel quand on change de champ
             records={results}
             field={filterField}
             value={filterValue}
@@ -290,37 +191,36 @@ export default function Dashboard({ darkMode, setDarkMode }) {
         </div>
       </div>
 
-      {/* CHARTS & STATS DYNAMIQUES */}
+      {/* GRAPHIQUES ET STATS */}
       <div className="charts-grid">
-        <AddressChart records={shown} onSelectAddress={handleAddressClick} />
-        <CountryChart records={shown} onSelectCountry={handleCountryClick} />
+        <AddressChart records={results} onSelectAddress={(val) => handleChartClick('address1', val)} />
+        <CountryChart records={results} onSelectCountry={(val) => handleChartClick('country', val)} />
       </div>
 
-      {/* On passe 'shown' pour que les stats changent avec le filtre */}
-      <StatsPanel records={shown} totalCount={displayCount} />
+      <StatsPanel records={results} totalCount={totalCount} />
 
-      {/* DATA TABLE */}
+      {/* TABLEAU DE DONNÉES */}
       <div ref={tableRef}>
         <DataTable
-          records={shown}
+          records={results}
           loading={loading}
-          totalCount={displayCount} // Affiche le compte filtré ou total
-          onSelect={handleSelect}
+          totalCount={totalCount}
+          onSelect={setSelected}
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={handlePageChange}
         />
       </div>
 
-      {/* FOOTER SYNCHRONISÉ */}
+      {/* FOOTER */}
       <footer className="audit-footer">
         <strong>
-          Résultats : {displayCount.toLocaleString()} | Page {currentPage + 1} / {totalPages}
+          Résultats filtrés : {totalCount.toLocaleString()} | Page {currentPage + 1} / {totalPages}
         </strong>
-        <span>Statut Backend: {backendStatus}</span>
+        <span>Backend: {backendStatus}</span>
       </footer>
 
-      {/* MODAL */}
+      {/* MODAL PROFIL */}
       {selected && <ProfileModal person={selected} onClose={() => setSelected(null)} />}
     </div>
   );
