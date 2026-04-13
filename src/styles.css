@@ -7190,3 +7190,32 @@ body.dark .btn-action:hover {
 .rerun-btn-enhanced.cached:hover {
   box-shadow: 0 6px 20px rgba(34, 197, 94, 0.5);
 }
+
+/* Dans ton styles.css */
+.suggestions-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  background-color: #ffffff !important; /* Force le fond blanc */
+  border: 2px solid #007bff !important; /* Bordure bleue flashy pour la voir */
+  border-radius: 4px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  z-index: 9999 !important; /* Passe au-dessus de tout le reste */
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  display: block !important; /* S'assure qu'elle n'est pas en display:none */
+}
+
+.suggestion-item {
+  padding: 12px;
+  color: #000000 !important; /* Texte noir forcé */
+  cursor: pointer;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+}
+
+.suggestion-item:hover {
+  background-color: #e9ecef;
+}
