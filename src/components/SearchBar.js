@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 
+// Utilise l'URL de l'API définie dans Vercel ou localhost par défaut
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
+
 export default function SearchBar({ onSearch }) {
   const [input, setInput] = useState("");
   const [suggestions, setSuggestions] = useState([]);
@@ -9,9 +12,13 @@ export default function SearchBar({ onSearch }) {
   // --- LOGIQUE AUTOCOMPLÉTION ---
   useEffect(() => {
     const timer = setTimeout(() => {
+      // Correction : On utilise l'URL dynamique API_URL
       if (input.trim().length >= 1) {
-        fetch(`http://localhost:8080/search/suggest?value=${encodeURIComponent(input)}`)
-          .then(res => res.json())
+        fetch(`${API_URL}/search/suggest?value=${encodeURIComponent(input)}`)
+          .then(res => {
+            if (!res.ok) throw new Error("Erreur réseau");
+            return res.json();
+          })
           .then(data => {
             setSuggestions(data);
             setShowSuggestions(true);
@@ -21,7 +28,7 @@ export default function SearchBar({ onSearch }) {
         setSuggestions([]);
         setShowSuggestions(false);
       }
-    }, 300);
+    }, 300); // Le Debounce de 300ms est parfait pour limiter la charge sur Render
 
     return () => clearTimeout(timer);
   }, [input]);
@@ -47,7 +54,7 @@ export default function SearchBar({ onSearch }) {
     setInput(val);
     setSuggestions([]);
     setShowSuggestions(false);
-    onSearch(val); // Lance la recherche globale immédiatement
+    onSearch(val);
   };
 
   return (
@@ -57,7 +64,7 @@ export default function SearchBar({ onSearch }) {
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onFocus={() => input.length >= 2 && setShowSuggestions(true)}
+          onFocus={() => input.length >= 1 && setShowSuggestions(true)}
           placeholder="Search by name, phone, email, address, country..."
           autoComplete="off"
           style={{
@@ -107,13 +114,12 @@ export default function SearchBar({ onSearch }) {
         </button>
       </form>
 
-      {/* LISTE DES SUGGESTIONS (Style intégré pour éviter le overflow) */}
       {showSuggestions && suggestions.length > 0 && (
         <ul style={{
           position: 'absolute',
           top: '100%',
           left: 0,
-          width: 'calc(100% - 210px)', // Aligné sur l'input (on retire la largeur des boutons)
+          width: 'calc(100% - 210px)',
           backgroundColor: 'white',
           border: '1px solid #ddd',
           borderRadius: '0 0 8px 8px',
