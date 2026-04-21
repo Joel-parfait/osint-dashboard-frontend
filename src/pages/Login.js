@@ -1,7 +1,7 @@
 // src/pages/Login.js
 import { useState, useEffect } from "react";
 import "./Login.css"; // Keep your existing CSS
-const API_BASE_URL = "http://localhost:8080";
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
 
 export default function Login({ onLoginSuccess }) {
   const [username, setUsername] = useState("");
@@ -30,7 +30,7 @@ export default function Login({ onLoginSuccess }) {
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
