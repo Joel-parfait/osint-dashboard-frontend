@@ -9,7 +9,8 @@ import { Eye, EyeOff, Loader2, Shield, Lock, User } from "lucide-react";
 import anticLogo from "@/assets/antic-logo.png";
 
 // API Base URL - change this to match your backend
-const API_BASE_URL = "http://localhost:800";
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
+
 
 interface LoginResponse {
   success: boolean;
