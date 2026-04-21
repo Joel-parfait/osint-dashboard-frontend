@@ -10,7 +10,9 @@ import { pushReport } from "./Reports";
 import { getCountryFromRecord } from "./utils/phoneUtils";
 import "./styles.css";
 
-const API = "http://localhost:8080";
+// Utilise l'URL de Vercel en prod, ou localhost en développement
+const API = process.env.REACT_APP_API_URL || "http://localhost:8080";
+
 
 export default function Dashboard({ darkMode, setDarkMode }) {
   // --- ÉTATS DES DONNÉES ---
