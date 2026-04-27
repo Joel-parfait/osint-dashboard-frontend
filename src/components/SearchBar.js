@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 
+// Utilise l'URL de l'API définie dans Vercel ou localhost par défaut
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
 
 export default function SearchBar({ onSearch }) {
@@ -8,8 +9,10 @@ export default function SearchBar({ onSearch }) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const wrapperRef = useRef(null);
 
+  // --- LOGIQUE AUTOCOMPLÉTION ---
   useEffect(() => {
     const timer = setTimeout(() => {
+      // Correction : On utilise l'URL dynamique API_URL
       if (input.trim().length >= 1) {
         fetch(`${API_URL}/search/suggest?value=${encodeURIComponent(input)}`)
           .then(res => {
@@ -25,11 +28,12 @@ export default function SearchBar({ onSearch }) {
         setSuggestions([]);
         setShowSuggestions(false);
       }
-    }, 300);
+    }, 300); // Le Debounce de 300ms est parfait pour limiter la charge sur Render
 
     return () => clearTimeout(timer);
   }, [input]);
 
+  // Fermer si clic extérieur
   useEffect(() => {
     function handleClickOutside(event) {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
@@ -55,75 +59,59 @@ export default function SearchBar({ onSearch }) {
 
   return (
     <div ref={wrapperRef} style={{ position: 'relative', width: '100%' }}>
-      {/* Utilisation de flex-wrap pour l'empilement automatique sur mobile */}
-      <form 
-        onSubmit={handleSubmit} 
-        style={{ 
-          display: 'flex', 
-          gap: '10px', 
-          width: '100%',
-          flexWrap: 'wrap' 
-        }}
-      >
+      <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '10px', width: '100%' }}>
         <input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onFocus={() => input.length >= 1 && setShowSuggestions(true)}
-          placeholder="Search by name, phone, email..."
+          placeholder="Search by name, phone, email, address, country..."
           autoComplete="off"
           style={{
-            flex: '1 1 300px', // Prend tout l'espace mais passe à la ligne si < 300px
+            flex: 1,
             padding: '12px 15px',
             border: '2px solid #ddd',
             borderRadius: '8px',
             fontSize: '16px',
-            background: 'white',
-            minWidth: '200px'
+            background: 'white'
           }}
         />
-        
-        {/* Container pour les boutons pour qu'ils restent groupés ou s'adaptent */}
-        <div style={{ display: 'flex', gap: '10px', flex: '1 1 auto' }}>
-          <button
-            type="submit"
-            style={{
-              flex: 1,
-              padding: '12px 20px',
-              background: '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '16px',
-              whiteSpace: 'nowrap',
-              fontWeight: 'bold'
-            }}
-          >
-            🔍 Search
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setInput("");
-              setSuggestions([]);
-              onSearch("");
-            }}
-            style={{
-              flex: 1,
-              padding: '12px 20px',
-              background: '#6b7280',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '16px',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            📄 All
-          </button>
-        </div>
+        <button
+          type="submit"
+          style={{
+            padding: '12px 24px',
+            background: '#3b82f6',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '16px',
+            whiteSpace: 'nowrap',
+            fontWeight: 'bold'
+          }}
+        >
+          🔍 Search
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setInput("");
+            setSuggestions([]);
+            onSearch("");
+          }}
+          style={{
+            padding: '12px 24px',
+            background: '#6b7280',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '16px',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          📄 Show All
+        </button>
       </form>
 
       {showSuggestions && suggestions.length > 0 && (
@@ -131,7 +119,7 @@ export default function SearchBar({ onSearch }) {
           position: 'absolute',
           top: '100%',
           left: 0,
-          right: 0, // S'aligne sur toute la largeur disponible du parent
+          width: 'calc(100% - 210px)',
           backgroundColor: 'white',
           border: '1px solid #ddd',
           borderRadius: '0 0 8px 8px',
@@ -148,7 +136,7 @@ export default function SearchBar({ onSearch }) {
               key={i} 
               onClick={() => handleSelectSuggestion(s)}
               style={{
-                padding: '12px 15px', // Padding légèrement augmenté pour le tactile
+                padding: '10px 15px',
                 cursor: 'pointer',
                 borderBottom: '1px solid #f0f0f0',
                 color: '#333',
