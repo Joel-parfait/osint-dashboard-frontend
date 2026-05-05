@@ -137,8 +137,8 @@ export default function Dashboard({ darkMode, setDarkMode }) {
           </button>
           <div className="header-center">
             <img src="/antic-logo.png" alt="ANTIC" className="antic-logo-img" />
-            <h1>OSINT Intelligence Dashboard</h1>
-            <p>CIRT Onsite OSINT Tool - ANTIC</p>
+            <h1>OSINT Dashboard</h1>
+            <p>CIRT OSINT Tool - ANTIC</p>
           </div>
           <div className="header-spacer"></div>
         </div>
